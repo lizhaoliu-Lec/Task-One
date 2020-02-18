@@ -160,7 +160,7 @@ def main():
     # (4) Define optimizer #
     ########################
     optimizer = {'name': 'sgd',
-                 'lr': 0.001,
+                 'lr': 0.0003,
                  'momentum': 0.9}
 
     ####################

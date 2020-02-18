@@ -9,9 +9,10 @@ from utils import center_print, join_path, Records
 
 
 def get_run_id(run_id=None):
-    time_format = '%Y-%m-%d...%H.%M.%S'
-    default_run_id = time.strftime(time_format, time.localtime(time.time()))
-    run_id = default_run_id or run_id
+    if run_id is None:
+        time_format = '%Y-%m-%d...%H.%M.%S'
+        default_run_id = time.strftime(time_format, time.localtime(time.time()))
+        return default_run_id
     return run_id
 
 
