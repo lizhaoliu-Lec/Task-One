@@ -114,15 +114,14 @@ class BaseTrainer(object):
             if self.global_step % len(self.train_loader) == 0:
                 self.records.reset()
 
-            if self.global_step == self.train_steps:
-                center_print('Training Process Ends.')
-                if self.tensorboard is not None:
-                    self.tensorboard.close()
-                return
             self.step()
 
             if self.global_step % self.val_every == 0 and self.val_loader is not None:
                 self.validation()
+
+        center_print('Training Process Ends.')
+        if self.tensorboard is not None:
+            self.tensorboard.close()
 
     def step(self):
         raise NotImplementedError
