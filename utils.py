@@ -45,11 +45,11 @@ class Records(object):
     def __init__(self):
         self.records = dict()
 
-    def record(self, r):
+    def record(self, r, n=1):
         for k, v in r.items():
             if k not in self.records:
                 self.records[k] = AverageMeter()
-            self.records[k].update(v)
+            self.records[k].update(v, n=n)
 
     def __getitem__(self, k):
         return self.records[k].avg

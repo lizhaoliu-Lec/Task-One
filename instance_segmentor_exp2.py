@@ -5,17 +5,19 @@ import torchvision.transforms as transforms
 
 from trainers import ImageClassifierTrainer
 from utils import join_path
-from models import SmallClassifier
+from models import SmallInstanceSegmentor
+from engine import train_one_epoch, evaluate
+
 
 
 def main():
     #########################
     # (0) hard code configs #
     #########################
-    DATA_BASE_DIR = join_path('datasets', 'cifar10')
-    DATA_SET_NAME = 'CIFAR10'
-    BATCH_SIZE = 64
-    NUM_WORKERS = 8
+    DATA_BASE_DIR = join_path('datasets', 'PennFudan')
+    DATA_SET_NAME = 'PennFudan'
+    BATCH_SIZE = 2
+    NUM_WORKERS = 4
     TRAIN_STEPS = 1000
     VAL_EVERY = 100
     LOG_EVERY = 50
