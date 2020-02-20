@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 
@@ -48,24 +47,21 @@ def main():
     ####################
     model = SmallClassifier(num_classes=NUM_CLASSES)
 
-    ############################
-    # (3) Define loss function #
-    ############################
-    loss_func = nn.CrossEntropyLoss()
+    ###############################################################
+    # (3) Define loss function inside the Trainer's step function #
+    ###############################################################
 
     ########################
     # (4) Define optimizer #
     ########################
-    optimizer = {'name': 'sgd',
-                 'lr': 0.001,
-                 'momentum': 0.9}
+    optimizer = torch.optim.SGD(params=model.parameters(),
+                                lr=0.001, momentum=0.9)
 
     ####################
     # (5) Init trainer #
     ####################
     trainer = ImageClassifierTrainer(model=model,
                                      name=NAME,
-                                     loss_func=loss_func,
                                      optimizer=optimizer,
                                      dataset_name=DATA_SET_NAME,
                                      train_loader=train_loader,

@@ -55,7 +55,7 @@ class SmallInstanceSegmentor(nn.Module):
 
 if __name__ == '__main__':
     def run_segmentor():
-        model = SmallInstanceSegmentor(num_classes=2, pretrained=False)
+        model = SmallInstanceSegmentor(num_classes=2, pretrained=True)
         model.eval()
         x = [torch.rand(3, 300, 400), torch.rand(3, 500, 400)]
         predictions = model(x)

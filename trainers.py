@@ -1,14 +1,20 @@
 import time
 import os
+import math
+import sys
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 import random
 import matplotlib.pyplot as plt
 
 import torch
+import torch.nn.functional as F
 
 from utils import join_path, Records, center_print, tensor2image
-from optimizers import get_optimizer
+from references.detection.utils import MetricLogger, SmoothedValue, warmup_lr_scheduler, reduce_dict
+from references.detection.coco_utils import get_coco_api_from_dataset
+from references.detection.coco_eval import CocoEvaluator
+from references.detection.engine import _get_iou_types
 
 
 def get_run_id(run_id=None):
@@ -23,13 +29,13 @@ class BaseTrainer(object):
     def __init__(self,
                  model,
                  name,
-                 loss_func,
                  optimizer,
                  train_loader,
                  train_steps=1000,
                  val_every=100,
                  val_loader=None,
                  log_every=10,
+                 lr_scheduler=None,
                  run_base_dir='runs',
                  run_id=None,
                  cuda=None,
@@ -37,8 +43,8 @@ class BaseTrainer(object):
                  debug=False):
         self.model = model
         self.name = name
-        self.loss_func = loss_func
         self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.train_steps = train_steps
@@ -76,10 +82,6 @@ class BaseTrainer(object):
         if self.cuda is not None:
             self.model = model.cuda()
 
-        self.optimizer = get_optimizer(optimizer.pop('name'),
-                                       self.model.parameters(),
-                                       **optimizer)
-
         self.records = Records()
 
         self.tensorboard = None
@@ -108,6 +110,10 @@ class BaseTrainer(object):
         center_print('Training Process Begins')
         for step_idx in range(1, self.train_steps + 1):
             self.global_step = step_idx
+            # reset the record after every epoch
+            if self.global_step % len(self.train_loader) == 0:
+                self.records.reset()
+
             if self.global_step == self.train_steps:
                 center_print('Training Process Ends.')
                 if self.tensorboard is not None:
@@ -121,17 +127,21 @@ class BaseTrainer(object):
     def step(self):
         raise NotImplementedError
 
+    @torch.no_grad()
     def validation(self):
         raise NotImplementedError
 
-    @staticmethod
-    def to_cuda(*args):
+    def to_device(self, *args):
         length = len(args)
-        args = [a.cuda() for a in args]
+        args = [a.cuda() if self.cuda is not None else a for a in args]
         if length == 1:
             return args[0]
         else:
             return args
+
+    @property
+    def epoch(self):
+        return self.global_step / len(self.train_loader)
 
 
 class BaseTester(object):
@@ -162,11 +172,10 @@ class ImageClassifierTrainer(BaseTrainer):
     def step(self):
         self.model.train()
         inputs, labels = next(iter(self.train_loader))
-        if self.cuda is not None:
-            inputs, labels = self.to_cuda(inputs, labels)
+        inputs, labels = self.to_device(inputs, labels)
 
         outputs = self.model(inputs)
-        loss = self.loss_func(outputs, labels)
+        loss = F.cross_entropy(outputs, labels)
         loss.backward()
         self.optimizer.step()
 
@@ -210,22 +219,22 @@ class ImageClassifierTrainer(BaseTrainer):
                     [self.plot_base_dir, 'Class %d' % ground_truth, 'train' if train else 'validation']),
                             title='Prediction: %d' % predict)
 
+    @torch.no_grad()
     def validation(self):
         val_records = Records()
         center_print('Performing validation')
         self.model.eval()
-        with torch.no_grad():
-            for data in tqdm(self.val_loader):
-                inputs, labels = data
-                if self.cuda is not None:
-                    inputs, labels = self.to_cuda(inputs, labels)
-                outputs = self.model(inputs)
-                loss = self.loss_func(outputs, labels)
-                acc = self.accuracy(labels, outputs)
-                loss_name = 'val/loss'
-                accuracy_name = 'val/accuracy'
-                r = {loss_name: loss.item(), accuracy_name: acc}
-                val_records.record(r, n=inputs.size()[0])
+        loss_name = 'val/loss'
+        accuracy_name = 'val/accuracy'
+        inputs, labels, outputs = None, None, None
+        for data in tqdm(self.val_loader):
+            inputs, labels = data
+            inputs, labels = self.to_device(inputs, labels)
+            outputs = self.model(inputs)
+            loss = F.cross_entropy(outputs, labels)
+            acc = self.accuracy(labels, outputs)
+            r = {loss_name: loss.item(), accuracy_name: acc}
+            val_records.record(r, n=inputs.size()[0])
         print('Validation Result: ', val_records)
         val_acc = val_records[accuracy_name]
         loss = val_records[loss_name]
@@ -241,8 +250,97 @@ class ImageClassifierTrainer(BaseTrainer):
         print()
 
 
-class InstanceSegmentorTrainer(BaseTester):
-    ...
+class InstanceSegmentorTrainer(BaseTrainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.records = MetricLogger(delimiter=" ")
+
+    def step(self):
+        self.model.train()
+        header = 'Epoch: [{}]'.format(int(self.global_step / len(self.train_loader)))
+        images, targets = next(
+            self.records.log_every(self.train_loader, self.global_step % len(self.train_loader), self.log_every,
+                                   header))
+        images = self.to_device(*list(image for image in images))
+        targets = [{k: self.to_device(v) for k, v in t.items()} for t in targets]
+
+        lr_scheduler = None
+        if self.epoch == 0:
+            warmup_factor = 1. / 1000
+            warmup_iters = min(1000, len(self.train_loader) - 1)
+
+            lr_scheduler = warmup_lr_scheduler(self.optimizer, warmup_iters, warmup_factor)
+
+        loss_dict = self.model(images, targets)
+
+        losses = sum(loss for loss in loss_dict.values())
+
+        # reduce losses over all GPUs for logging purposes
+        loss_dict_reduced = reduce_dict(loss_dict)
+        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+        loss_value = losses_reduced.item()
+
+        if not math.isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            print(loss_dict_reduced)
+            sys.exit(1)
+
+        self.optimizer.zero_grad()
+        losses.backward()
+        self.optimizer.step()
+
+        if lr_scheduler is not None:
+            lr_scheduler.step(epoch=self.epoch)
+
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step(epoch=self.epoch)
+
+        self.records.update(loss=losses_reduced, **loss_dict_reduced)
+        self.records.update(lr=self.optimizer.param_groups[0]["lr"])
+
+    @torch.no_grad()
+    def validation(self):
+        n_threads = torch.get_num_threads()
+        # FIXME remove this and make paste_masks_in_image run on the GPU
+        torch.set_num_threads(1)
+        cpu_device = torch.device("cpu")
+        self.model.eval()
+        metric_logger = MetricLogger(delimiter="  ")
+        header = 'Test:'
+
+        coco = get_coco_api_from_dataset(self.val_loader.dataset)
+        iou_types = _get_iou_types(self.model)
+        coco_evaluator = CocoEvaluator(coco, iou_types)
+        i = 0
+        for images, targets in metric_logger.log_every(self.val_loader, i, 100, header):
+            i += 1
+            images = self.to_device(*list(image for image in images))
+            targets = [{k: self.to_device(v) for k, v in t.items()} for t in targets]
+
+            torch.cuda.synchronize()
+            model_time = time.time()
+            outputs = self.model(images)
+
+            outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+            model_time = time.time() - model_time
+
+            res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+            evaluator_time = time.time()
+            coco_evaluator.update(res)
+            evaluator_time = time.time() - evaluator_time
+            metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
+
+        # gather the stats from all processes
+        metric_logger.synchronize_between_processes()
+        print("Averaged stats:", metric_logger)
+        coco_evaluator.synchronize_between_processes()
+
+        # accumulate predictions from all images
+        coco_evaluator.accumulate()
+        coco_evaluator.summarize()
+        torch.set_num_threads(n_threads)
+        return coco_evaluator
 
 
 if __name__ == '__main__':
