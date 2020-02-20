@@ -27,7 +27,7 @@ class SmallClassifier(nn.Module):
         return x
 
 
-class SmallInstanceSegmentor(nn.Module):
+class SmallDetectorAndSegmentor(nn.Module):
     def __init__(self,
                  num_classes,
                  hidden_layer=256,
@@ -55,7 +55,7 @@ class SmallInstanceSegmentor(nn.Module):
 
 if __name__ == '__main__':
     def run_segmentor():
-        model = SmallInstanceSegmentor(num_classes=2, pretrained=True)
+        model = SmallDetectorAndSegmentor(num_classes=2, pretrained=True)
         model.eval()
         x = [torch.rand(3, 300, 400), torch.rand(3, 500, 400)]
         predictions = model(x)

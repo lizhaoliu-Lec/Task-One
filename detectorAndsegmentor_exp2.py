@@ -5,7 +5,7 @@ import torchvision
 from trainers import InstanceSegmentorTrainer
 from utils import join_path
 from datasets import PennFudanDataset
-from models import SmallInstanceSegmentor
+from models import SmallDetectorAndSegmentor
 from references.detection.utils import collate_fn
 import references.detection.transforms as transforms
 
@@ -49,7 +49,7 @@ def main():
     ####################
     # (2) Define model #
     ####################
-    model = SmallInstanceSegmentor(num_classes=NUM_CLASSES)
+    model = SmallDetectorAndSegmentor(num_classes=NUM_CLASSES)
 
     ############################
     # (3) Define loss function #
