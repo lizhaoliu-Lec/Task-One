@@ -39,6 +39,7 @@ class PennFudanDataset(object):
     def __init__(self,
                  root,
                  transforms,
+                 train=True,
                  download=False):
         dataset_url = 'https://www.cis.upenn.edu/~jshi/ped_html/PennFudanPed.zip',
         filename = 'PennFudanPed.zip'
@@ -53,10 +54,19 @@ class PennFudanDataset(object):
             raise RuntimeError('Dataset not found or corrupted.' +
                                ' You can use download=True to download it')
 
+        self.train = train  # training set or test set
+
         # load all image files, sorting them to
         # ensure that they are aligned
         self.imgs = list(sorted(os.listdir(os.path.join(self.root, "PNGImages"))))
         self.masks = list(sorted(os.listdir(os.path.join(self.root, "PedMasks"))))
+
+        if self.train:
+            self.imgs = self.imgs[:-50]
+            self.masks = self.masks[:-50]
+        else:
+            self.imgs = self.imgs[-50:]
+            self.masks = self.masks[-50:]
 
     def __getitem__(self, idx):
         # load images ad masks
