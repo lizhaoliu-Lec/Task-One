@@ -27,7 +27,22 @@ python detectorAndsegmentor_exp2.py
 ```
 
 
-## Project 3:
+## Project 3: AG News Classification via Transformer
+### Note 
+due to the AG News implemented by torchtext will be downloaded from google drive, 
+we need to explicitly download it and place it in your root dir
+### support features
+- clear console log
+- tensorboard scalar and text visualization
+### usage
+```
+# run model
+python text_classifier_exp3.py
+
+# run tensorboard
+cd runs/
+tensorboard --logdir=./ --port=your_port (default 6006)
+```
 
 
 ## Project 4:

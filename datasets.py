@@ -5,8 +5,16 @@ import torch
 import torchvision.transforms as T
 from torchvision.datasets import cifar
 from torchvision.datasets.utils import download_url
+from torchtext.datasets.text_classification import download_from_url, URLS, extract_archive, build_vocab_from_iterator
+from torchtext.datasets.text_classification import _csv_iterator, Vocab, _create_data_from_iterator
+from torchtext.datasets.text_classification import TextClassificationDataset
 
 from PIL import Image
+
+__all__ = [
+    'cifar', 'PennFudanDataset',
+    'AGNews',
+]
 
 
 def download_extract(url, root, filename, md5):
@@ -127,6 +135,49 @@ class PennFudanDataset(object):
         return len(self.imgs)
 
 
+def _setup_datasets(dataset_name=None,
+                    root='.data',
+                    ngrams=1,
+                    vocab=None,
+                    include_unk=False,
+                    downloaded_name=None):
+    if downloaded_name is None:
+        dataset_tar = download_from_url(URLS[dataset_name], root=root)
+    else:
+        dataset_tar = os.path.join(root, downloaded_name)
+    extracted_files = extract_archive(dataset_tar)
+
+    for fname in extracted_files:
+        if fname.endswith('train.csv'):
+            train_csv_path = fname
+        if fname.endswith('test.csv'):
+            test_csv_path = fname
+
+    if vocab is None:
+        print('Building Vocab based on {}'.format(train_csv_path))
+        vocab = build_vocab_from_iterator(_csv_iterator(train_csv_path, ngrams))
+    else:
+        if not isinstance(vocab, Vocab):
+            raise TypeError("Passed vocabulary is not of type Vocab")
+    print('Vocab has {} entries'.format(len(vocab)))
+    print('Creating training data')
+    train_data, train_labels = _create_data_from_iterator(
+        vocab, _csv_iterator(train_csv_path, ngrams, yield_cls=True), include_unk)
+    print('Creating testing data')
+    test_data, test_labels = _create_data_from_iterator(
+        vocab, _csv_iterator(test_csv_path, ngrams, yield_cls=True), include_unk)
+    if len(train_labels ^ test_labels) > 0:
+        raise ValueError("Training and test labels don't match")
+    return (TextClassificationDataset(vocab, train_data, train_labels),
+            TextClassificationDataset(vocab, test_data, test_labels))
+
+
+def AGNews(root, *args, **kwargs):
+    if not os.path.exists(root):
+        os.makedirs(root)
+    return _setup_datasets(root=root, downloaded_name='ag_news_csv.tar.gz', *args, **kwargs)
+
+
 if __name__ == '__main__':
     def run_download_PennFudanDataset():
         d = PennFudanDataset(root=os.path.join('datasets', 'PennFudan'),
@@ -135,4 +186,15 @@ if __name__ == '__main__':
         print('length of dataset: %d' % len(d))
 
 
-    run_download_PennFudanDataset()
+    def run_download_AGNews():
+        train_dataset, test_dataset = AGNews(root=os.path.join('datasets', 'AGNews'))
+        VOCAB_SIZE = len(train_dataset.get_vocab())
+        NUM_CLASS = len(train_dataset.get_labels())
+        print('VOCAB', VOCAB_SIZE)
+        print('NUM class', NUM_CLASS)
+        vocab = train_dataset.get_vocab()
+        print('vocab stoi', vocab.stoi)
+        print('vocab stoi pad', vocab.stoi['<pad>'])
+
+
+    run_download_AGNews()

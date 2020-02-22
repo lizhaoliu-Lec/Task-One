@@ -19,6 +19,16 @@ def tensor2image(tensor):
     return (tensor - np.min(tensor)) / (np.max(tensor) - np.min(tensor))
 
 
+def tensor2text(text_tensor, vocab):
+    pad_idx = vocab.stoi['<pad>']
+    if text_tensor.is_cuda:
+        text_tensor = text_tensor.cpu()
+    text_tensor = text_tensor.numpy()
+    text_string = ' '.join([vocab.itos[idx] if idx != pad_idx else '' for idx in text_tensor]) + '.'
+    text_string = text_string[0].upper() + text_string[1:]
+    return text_string
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 

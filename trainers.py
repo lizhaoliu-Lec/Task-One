@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 
-from utils import join_path, Records, center_print, tensor2image
-from references.detection.utils import MetricLogger, SmoothedValue, warmup_lr_scheduler, reduce_dict
+from utils import join_path, Records, center_print, tensor2image, tensor2text
+from references.detection.utils import MetricLogger, warmup_lr_scheduler, reduce_dict
 from references.detection.coco_utils import get_coco_api_from_dataset
 from references.detection.coco_eval import CocoEvaluator
 from references.detection.engine import _get_iou_types
@@ -182,7 +182,7 @@ class ImageClassifierTrainer(BaseTrainer):
         loss_name = 'train/loss'
         accuracy_name = 'train/accuracy'
         r = {loss_name: loss.item(), accuracy_name: acc}
-        self.records.record(r, n=inputs.size()[0])
+        self.records.record(r)
 
         if self.global_step % self.log_every == 0 or self.global_step == 1:
             print('Step: %d,' % self.global_step, self.records)
@@ -233,13 +233,12 @@ class ImageClassifierTrainer(BaseTrainer):
             loss = F.cross_entropy(outputs, labels)
             acc = self.accuracy(labels, outputs)
             r = {loss_name: loss.item(), accuracy_name: acc}
-            val_records.record(r, n=inputs.size()[0])
+            val_records.record(r)
         print('Validation Result: ', val_records)
         val_acc = val_records[accuracy_name]
         loss = val_records[loss_name]
         self.add_scalar(d={loss_name: loss, accuracy_name: val_acc})
-        if self.global_step % self.plot_every == 0:
-            self.add_images(images=inputs, labels=labels, predicts=outputs, train=False)
+        self.add_images(images=inputs, labels=labels, predicts=outputs, train=False)
 
         if val_acc > self.best_accuracy:
             center_print('Better model occurs', around='!')
@@ -340,6 +339,107 @@ class InstanceSegmentorTrainer(BaseTrainer):
         coco_evaluator.summarize()
         torch.set_num_threads(n_threads)
         return coco_evaluator
+
+
+class TextClassifierTrainer(BaseTrainer):
+    def __init__(self,
+                 dataset_name='AGNews',
+                 num_write=4,
+                 write_every=100,
+                 vocab=None,
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dataset_name = dataset_name
+        self.num_write = num_write
+        self.write_every = write_every
+        self.vocab = vocab
+        self.best_accuracy = 0
+        self.write_base_dir = dataset_name
+
+    def add_scalar(self, d):
+        if self.tensorboard is not None:
+            for k, v in d.items():
+                self.tensorboard.add_scalar(tag=k, scalar_value=v, global_step=self.global_step)
+
+    @staticmethod
+    def accuracy(labels, predicts):
+        total = labels.size(0)
+        _, predicts = torch.max(predicts.data, 1)
+        correct = (predicts == labels).sum().item()
+        return correct / total
+
+    def step(self):
+        self.model.train()
+        inputs, labels = next(iter(self.train_loader))
+        inputs, labels = self.to_device(inputs, labels)
+        outputs = self.model(inputs)
+        loss = F.cross_entropy(outputs, labels)
+        loss.backward()
+        self.optimizer.step()
+
+        acc = self.accuracy(labels, outputs)
+
+        loss_name = 'train/loss'
+        accuracy_name = 'train/accuracy'
+        r = {loss_name: loss.item(), accuracy_name: acc}
+        self.records.record(r)
+
+        if self.global_step % self.log_every == 0 or self.global_step == 0:
+            print('Step: %d,' % self.global_step, self.records)
+            self.add_scalar(d={loss_name: loss.item(), accuracy_name: acc})
+
+        if self.global_step % self.write_every == 0:
+            self.add_texts(texts=inputs, labels=labels, predicts=outputs, train=True)
+
+    def add_texts(self, texts, labels, predicts, train=True):
+        def _write_text(tensorboard, vocab, text_tensor, tag, suffix=None):
+            text_string = tensor2text(text_tensor, vocab)
+            if suffix is not None:
+                text_string = text_string + ' <===> ' + suffix
+            tensorboard.add_text(tag=tag, text_string=text_string, global_step=self.global_step)
+
+        if self.tensorboard is not None:
+            _, predicts = torch.max(predicts.data, 1)
+            batch_size = texts.size()[0]
+            batch_indexes = [_ for _ in range(batch_size)]
+            random.shuffle(batch_indexes)
+            write_indexes = batch_indexes[:self.num_write]
+
+            for write_idx in write_indexes:
+                ground_truth = labels[write_idx].item()
+                predict = predicts[write_idx].item()
+                _write_text(self.tensorboard, self.vocab, texts[write_idx], tag='/'.join(
+                    [self.write_base_dir, 'Class %d' % ground_truth, 'train' if train else 'validation']),
+                            suffix='Predict: %d' % predict)
+
+    @torch.no_grad()
+    def validation(self):
+        val_records = Records()
+        center_print('Performing validation')
+        self.model.eval()
+        loss_name = 'val/loss'
+        accuracy_name = 'val/accuracy'
+        inputs, labels, outputs = None, None, None
+        for data in tqdm(self.val_loader):
+            inputs, labels = data
+            inputs, labels = self.to_device(inputs, labels)
+            outputs = self.model(inputs)
+            loss = F.cross_entropy(outputs, labels)
+            acc = self.accuracy(labels, outputs)
+            r = {loss_name: loss.item(), accuracy_name: acc}
+            val_records.record(r)
+        print('Validation Result: ', val_records)
+        val_acc = val_records[accuracy_name]
+        loss = val_records[loss_name]
+        self.add_scalar(d={loss_name: loss, accuracy_name: val_acc})
+        self.add_texts(texts=inputs, labels=labels, predicts=outputs, train=True)
+
+        if val_acc > self.best_accuracy:
+            center_print('Better model occurs', around='!')
+            self.best_accuracy = val_acc
+            self.save_checkpoint(is_best=True)
+        self.save_checkpoint(is_best=False)
+        print()
 
 
 if __name__ == '__main__':
