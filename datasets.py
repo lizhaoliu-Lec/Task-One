@@ -3,7 +3,7 @@ import zipfile
 import numpy as np
 import torch
 import torchvision.transforms as T
-from torchvision.datasets import cifar
+from torchvision.datasets.cifar import CIFAR10
 from torchvision.datasets.utils import download_url
 from torchtext.datasets.text_classification import download_from_url, URLS, extract_archive, build_vocab_from_iterator
 from torchtext.datasets.text_classification import _csv_iterator, Vocab, _create_data_from_iterator
@@ -12,7 +12,7 @@ from torchtext.datasets.text_classification import TextClassificationDataset
 from PIL import Image
 
 __all__ = [
-    'cifar', 'PennFudanDataset',
+    'CIFAR10', 'PennFudanDataset',
     'AGNews',
 ]
 
