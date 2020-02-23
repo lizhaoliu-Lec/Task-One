@@ -2,7 +2,7 @@
 - Powerful trainer can be implemented by inheriting BaseTrainer in trainers.py
 - Clear module structures, trainers.py, models.py, datasets.py, utils.py...  
 
-## Project 1: Image Classifier via CNN
+## Project 1: Image Classification via CNN
 ### support features
 - clear console log
 - tensorboard scalar and image visualization
@@ -17,7 +17,7 @@ tensorboard --logdir=./ --port=your_port (default 6006)
 ```
 
 
-## Project 2: Image Detector and Segmentor via CNN
+## Project 2: Image Detection and Segmentation via CNN
 ### support features
 - clear console log
 ### usage
