@@ -1,10 +1,12 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
 
 from trainers import ImageClassifierTrainer
 from utils import join_path
 from models import SmallClassifier
+from datasets import CIFAR10
 
 
 def main():
@@ -19,7 +21,7 @@ def main():
     VAL_EVERY = 100
     LOG_EVERY = 50
     NAME = 'SmallClassifier'
-    CUDA = 0
+    CUDA = 3
     RUN_ID = 'example'
     PLOT_EVERY = 500
     NUM_CLASSES = 10
@@ -30,17 +32,20 @@ def main():
     #######################
     transform = transforms.Compose(
         [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+         transforms.Normalize(
+             mean=(0.4914, 0.4822, 0.4465),
+             std=(0.2470, 0.2435, 0.2616)
+         )])
 
-    train_set = torchvision.datasets.CIFAR10(root=DATA_BASE_DIR, train=True,
-                                             download=True, transform=transform)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=BATCH_SIZE,
-                                               shuffle=True, num_workers=NUM_WORKERS)
+    train_set = CIFAR10(root=DATA_BASE_DIR, train=True,
+                        download=True, transform=transform)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE,
+                              shuffle=True, num_workers=NUM_WORKERS)
 
-    test_set = torchvision.datasets.CIFAR10(root=DATA_BASE_DIR, train=False,
-                                            download=True, transform=transform)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=BATCH_SIZE,
-                                              shuffle=False, num_workers=NUM_WORKERS)
+    test_set = CIFAR10(root=DATA_BASE_DIR, train=False,
+                       download=True, transform=transform)
+    test_loader = DataLoader(test_set, batch_size=BATCH_SIZE,
+                             shuffle=False, num_workers=NUM_WORKERS)
 
     ####################
     # (2) Define model #
@@ -54,8 +59,7 @@ def main():
     ########################
     # (4) Define optimizer #
     ########################
-    optimizer = torch.optim.SGD(params=model.parameters(),
-                                lr=0.001, momentum=0.9)
+    optimizer = torch.optim.SGD(params=model.parameters(), lr=0.001)
 
     ####################
     # (5) Init trainer #

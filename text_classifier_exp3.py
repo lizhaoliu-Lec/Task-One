@@ -54,7 +54,7 @@ def main():
     ########################
     # (4) Define optimizer #
     ########################
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, weight_decay=0.0005)
 
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=3,

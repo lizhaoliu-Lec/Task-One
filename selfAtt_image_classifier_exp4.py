@@ -30,7 +30,10 @@ def main():
     #######################
     transform = transforms.Compose(
         [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+         transforms.Normalize(
+             mean=(0.4914, 0.4822, 0.4465),
+             std=(0.2470, 0.2435, 0.2616)
+         )])
 
     train_set = torchvision.datasets.CIFAR10(root=DATA_BASE_DIR, train=True,
                                              download=True, transform=transform)
@@ -55,7 +58,7 @@ def main():
     # (4) Define optimizer #
     ########################
     optimizer = torch.optim.SGD(params=model.parameters(),
-                                lr=0.1, momentum=0.9, weight_decay=1e-4)
+                                lr=0.001, weight_decay=1e-4)
 
     ####################
     # (5) Init trainer #
