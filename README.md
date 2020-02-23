@@ -45,5 +45,15 @@ tensorboard --logdir=./ --port=your_port (default 6006)
 ```
 
 
-## Project 4:
-    
+## Project 4: Image Classification via [Stand-Alone Self-Attention in Vision Models](https://papers.nips.cc/paper/8302-stand-alone-self-attention-in-vision-models.pdf)
+- clear console log
+- tensorboard scalar and image visualization
+### usage
+```
+# run model
+python selfAtt_image_classifier_exp4.py
+
+# run tensorboard
+cd runs/
+tensorboard --logdir=./ --port=your_port (default 6006)
+```
