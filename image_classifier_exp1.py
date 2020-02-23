@@ -24,7 +24,7 @@ def main():
     RUN_ID = 'example'
     PLOT_EVERY = 500
     NUM_CLASSES = 10
-    DEBUG = True
+    DEBUG = False
 
     #######################
     # (1) Define datasets #
