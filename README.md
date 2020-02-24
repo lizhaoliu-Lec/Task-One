@@ -9,7 +9,7 @@
 ### usage
 ```
 # run model
-python image_classifier_exp1.py
+python exp1_CNNImageCLassifier.py
 
 # run tensorboard
 cd runs/
@@ -23,7 +23,7 @@ tensorboard --logdir=./ --port=your_port (default 6006)
 ### usage
 ```
 # run model
-python detectorAndsegmentor_exp2.py
+python exp2_CNNImageDetectorAndSegmentor.py
 ```
 
 
@@ -37,7 +37,7 @@ we need to explicitly download it and place it in root dir
 ### usage
 ```
 # run model
-python text_classifier_exp3.py
+python exp3_TransformerTextClassifier.py
 
 # run tensorboard
 cd runs/
@@ -51,7 +51,7 @@ tensorboard --logdir=./ --port=your_port (default 6006)
 ### usage
 ```
 # run model
-python selfAtt_image_classifier_exp4.py
+python exp4_SelfAttImageClassifier.py
 
 # run tensorboard
 cd runs/
