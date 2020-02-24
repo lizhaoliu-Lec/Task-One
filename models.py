@@ -83,7 +83,7 @@ class SmallTransformer(nn.Module):
                  d_model=128,
                  num_head=2,
                  dim_feedforward=256,
-                 num_layer=2,
+                 num_layer=1,
                  drop_rate=0.5,
                  init_range=0.1):
         super().__init__()

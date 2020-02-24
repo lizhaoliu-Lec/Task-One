@@ -19,7 +19,7 @@ def main():
     TRAIN_STEPS = 1000
     VAL_EVERY = 100
     LOG_EVERY = 50
-    NAME = 'SmallClassifier'
+    NAME = 'SmallCNN'
     CUDA = 3
     RUN_ID = 'example'
     PLOT_EVERY = 500

@@ -12,12 +12,12 @@ def main():
     # (0) hard code configs #
     #########################
     DATA_BASE_DIR = join_path('datasets', 'AGNews')
-    BATCH_SIZE = 4
-    TRAIN_STEPS = 200
+    BATCH_SIZE = 8
+    TRAIN_STEPS = 10000
     VAL_EVERY = 100
-    LOG_EVERY = 10
+    LOG_EVERY = 100
     NAME = 'SmallTransformer'
-    CUDA = 1
+    CUDA = 3
     RUN_ID = 'example'
     DEBUG = False
     NUM_WRITE = 4

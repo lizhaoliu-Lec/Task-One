@@ -1,6 +1,5 @@
 import torch
-import torch.nn as nn
-import torchvision
+from torch.utils.data import DataLoader
 
 from trainers import InstanceSegmentorTrainer
 from utils import join_path
@@ -21,7 +20,7 @@ def main():
     _NUM_EPOCHS = 10
     VAL_EVERY = 100
     LOG_EVERY = 10
-    NAME = 'SmallInstanceSegmentor'
+    NAME = 'SmallDetectorAndSegmentor'
     CUDA = 0
     RUN_ID = 'example'
     NUM_CLASSES = 2
@@ -36,15 +35,15 @@ def main():
 
     train_set = PennFudanDataset(root=DATA_BASE_DIR, transforms=transform, train=True,
                                  download=True)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=BATCH_SIZE,
-                                               shuffle=True, num_workers=NUM_WORKERS,
-                                               collate_fn=collate_fn)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE,
+                              shuffle=True, num_workers=NUM_WORKERS,
+                              collate_fn=collate_fn)
 
     test_set = PennFudanDataset(root=DATA_BASE_DIR, transforms=transform, train=False,
                                 download=True)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=BATCH_SIZE,
-                                              shuffle=False, num_workers=NUM_WORKERS,
-                                              collate_fn=collate_fn)
+    test_loader = DataLoader(test_set, batch_size=BATCH_SIZE,
+                             shuffle=False, num_workers=NUM_WORKERS,
+                             collate_fn=collate_fn)
 
     ####################
     # (2) Define model #
